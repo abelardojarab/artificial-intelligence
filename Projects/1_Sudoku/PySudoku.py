@@ -4,7 +4,6 @@ import SudokuSquare
 from utils import *
 from GameResources import *
 
-
 def play(values, result, history):
     assignments = reconstruct(result, history)
     pygame.init()
