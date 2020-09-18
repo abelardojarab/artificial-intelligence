@@ -19,23 +19,28 @@ class ActionLayer(BaseActionLayer):
         --------
         layers.ActionNode
         """
-        # TODO: implement this function
-        raise NotImplementedError
-
+        for effectA in actionA.effects:
+            for effectB in actionB.effects:
+                if effectA == ~effectB:
+                    return True
+        # raise NotImplementedError
 
     def _interference(self, actionA, actionB):
-        """ Return True if the effects of either action negate the preconditions of the other 
+        """ Return True if the effects of either action negate the preconditions of the other
 
         Hints:
             (1) `~Literal` can be used to logically negate a literal
             (2) `self.parents` contains a map from actions to preconditions
-        
+
         See Also
         --------
         layers.ActionNode
         """
-        # TODO: implement this function
-        raise NotImplementedError
+        for effect in actionA.effects:
+            for precondition in actionB.preconditions:
+                if precondition == ~effect:
+                    return True
+        # raise NotImplementedError
 
     def _competing_needs(self, actionA, actionB):
         """ Return True if any preconditions of the two actions are pairwise mutex in the parent layer
@@ -43,14 +48,17 @@ class ActionLayer(BaseActionLayer):
         Hints:
             (1) `self.parent_layer` contains a reference to the previous literal layer
             (2) `self.parents` contains a map from actions to preconditions
-        
+
         See Also
         --------
         layers.ActionNode
         layers.BaseLayer.parent_layer
         """
-        # TODO: implement this function
-        raise NotImplementedError
+        for preconditionA in actionA.preconditions:
+            for preconditionB in actionB.preconditions:
+                if self.parent_layer.is_mutex(preconditionA, preconditionB):
+                    return True
+        # raise NotImplementedError
 
 
 class LiteralLayer(BaseLiteralLayer):
@@ -66,13 +74,19 @@ class LiteralLayer(BaseLiteralLayer):
         --------
         layers.BaseLayer.parent_layer
         """
-        # TODO: implement this function
-        raise NotImplementedError
+        for actionA in self.parents[literalA]:
+            for actionB in self.parents[literalB]:
+                if not self.parent_layer.is_mutex(actionA, actionB):
+                    return False
+
+        return True
+        # raise NotImplementedError
 
     def _negation(self, literalA, literalB):
         """ Return True if two literals are negations of each other """
-        # TODO: implement this function
-        raise NotImplementedError
+        if literalA == ~literalB and literalB == ~literalA:
+            return True
+        # raise NotImplementedError
 
 
 class PlanningGraph:
@@ -99,9 +113,11 @@ class PlanningGraph:
         self.goal = set(problem.goal)
 
         # make no-op actions that persist every literal to the next layer
-        no_ops = [make_node(n, no_op=True) for n in chain(*(makeNoOp(s) for s in problem.state_map))]
-        self._actionNodes = no_ops + [make_node(a) for a in problem.actions_list]
-        
+        no_ops = [make_node(n, no_op=True) for n in chain(
+            *(makeNoOp(s) for s in problem.state_map))]
+        self._actionNodes = no_ops + \
+            [make_node(a) for a in problem.actions_list]
+
         # initialize the planning graph by finding the literals that are in the
         # first layer and finding the actions they they should be connected to
         literals = [s if f else ~s for f, s in zip(state, problem.state_map)]
@@ -118,7 +134,7 @@ class PlanningGraph:
         level at which the literal first appears in the planning graph. Note
         that the level cost is **NOT** the minimum number of actions to
         achieve a single goal literal.
-        
+
         For example, if Goal_1 first appears in level 0 of the graph (i.e.,
         it is satisfied at the root of the planning graph) and Goal_2 first
         appears in level 3, then the levelsum is 0 + 3 = 3.
@@ -135,8 +151,12 @@ class PlanningGraph:
         --------
         Russell-Norvig 10.3.1 (3rd Edition)
         """
-        # TODO: implement this function
-        raise NotImplementedError
+        graph = self.fill()
+        levelsum = 0
+        for goal in self.goal:
+            levelsum = levelsum + self.costlevel(graph, goal)
+
+        # raise NotImplementedError
 
     def h_maxlevel(self):
         """ Calculate the max level heuristic for the planning graph
@@ -165,8 +185,13 @@ class PlanningGraph:
         -----
         WARNING: you should expect long runtimes using this heuristic with A*
         """
-        # TODO: implement maxlevel heuristic
-        raise NotImplementedError
+        graph = self.fill()
+        costs = []
+        for goal in self.goal:
+            costs.append(self.costlevel(graph, goal))
+
+        return max(costs)
+        # raise NotImplementedError
 
     def h_setlevel(self):
         """ Calculate the set level heuristic for the planning graph
@@ -190,8 +215,27 @@ class PlanningGraph:
         -----
         WARNING: you should expect long runtimes using this heuristic on complex problems
         """
-        # TODO: implement setlevel heuristic
-        raise NotImplementedError
+        while not self._is_leveled:
+            layer = self.literal_layers[-1]
+            if self.goal.issubset(layer):
+                no_pairmutex = True
+                for goal1 in self.goal:
+                    for goal2 in self.goal:
+                        if layer.is_mutex(goal1, goal2):
+                            no_pairmutex = False
+                            break
+
+                if no_pairmutex:
+                    return len(self.literal_layers) - 1
+            self._extend()
+
+        return len(self.literal_layers) - 1
+        # raise NotImplementedError
+
+    def costlevel(self, graph, goal):
+        for level, layer in enumerate(self.literal_layers):
+            if goal in layer:
+                return level
 
     ##############################################################################
     #                     DO NOT MODIFY CODE BELOW THIS LINE                     #
@@ -212,7 +256,8 @@ class PlanningGraph:
         YOU SHOULD NOT THIS FUNCTION TO COMPLETE THE PROJECT, BUT IT MAY BE USEFUL FOR TESTING
         """
         while not self._is_leveled:
-            if maxlevels == 0: break
+            if maxlevels == 0:
+                break
             self._extend()
             maxlevels -= 1
         return self
@@ -224,14 +269,17 @@ class PlanningGraph:
         negative literals in the leaf nodes of the parent literal level.
 
         The new literal layer contains all literals that could result from taking each possible
-        action in the NEW action layer. 
+        action in the NEW action layer.
         """
-        if self._is_leveled: return
+        if self._is_leveled:
+            return
 
         parent_literals = self.literal_layers[-1]
         parent_actions = parent_literals.parent_layer
-        action_layer = ActionLayer(parent_actions, parent_literals, self._serialize, self._ignore_mutexes)
-        literal_layer = LiteralLayer(parent_literals, action_layer, self._ignore_mutexes)
+        action_layer = ActionLayer(
+            parent_actions, parent_literals, self._serialize, self._ignore_mutexes)
+        literal_layer = LiteralLayer(
+            parent_literals, action_layer, self._ignore_mutexes)
 
         for action in self._actionNodes:
             # actions in the parent layer are skipped because are added monotonically to planning graphs,
@@ -241,7 +289,8 @@ class PlanningGraph:
                 literal_layer |= action.effects
 
                 # add two-way edges in the graph connecting the parent layer with the new action
-                parent_literals.add_outbound_edges(action, action.preconditions)
+                parent_literals.add_outbound_edges(
+                    action, action.preconditions)
                 action_layer.add_inbound_edges(action, action.preconditions)
 
                 # # add two-way edges in the graph connecting the new literaly layer with the new action
