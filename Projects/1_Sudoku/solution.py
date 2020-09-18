@@ -6,8 +6,6 @@ This is the final code for creating an AI agent to solve all sudoku puzzles,
 We implemented elimination, only choice, tree search and "naked twins" statagies and
 enchanced the solver to solve diagonal sudoku as well.
 
-History:
-JAC: 2017/01/27: Initial version.
 """
 
 assignments = []
