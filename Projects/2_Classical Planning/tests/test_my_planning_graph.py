@@ -35,7 +35,7 @@ class BaseMutexTest(unittest.TestCase):
         self.neg_literals = [~x for x in self.pos_literals]
         self.literal_layer = LiteralLayer(self.pos_literals + self.neg_literals, ActionLayer())
         self.literal_layer.update_mutexes()
-        
+
         # independent actions for testing mutex
         self.actions = [
             make_node(Action(expr('Go(here)'), [set(), set()], [set([at_here]), set()])),
@@ -52,7 +52,7 @@ class BaseMutexTest(unittest.TestCase):
 class Test_1_InconsistentEffectsMutex(BaseMutexTest):
     def setUp(self):
         super().setUp()
-        # bake has the effect Have(Cake) which is the logical negation of the effect 
+        # bake has the effect Have(Cake) which is the logical negation of the effect
         # ~Have(cake) from the persistence action ~NoOp::Have(cake)
         no_ops = [a for a in self.cake_pg._actionNodes if a.no_op]
         self.inconsistent_effects_actions = [self.bake_action, no_ops[3]]
@@ -142,7 +142,7 @@ class Test_2_InterferenceMutex(BaseMutexTest):
             and none of these effects {!s} negates any of these preconditions {!s}.
         """, acts[0], acts[1], list(acts[0].effects), list(acts[1].preconditions),
         acts[1].effects, acts[1].preconditions))
-    
+
     def test_2d_interference_mutex(self):
         acts = [self.actions[0], self.no_ops[1]]
         self.assertTrue(self.action_layer._interference(*acts), chain_dedent("""
@@ -178,7 +178,7 @@ class Test_3_NegationMutex(BaseMutexTest):
             by negation: ~'{litA!s}' != '{litB!s}'
             """, litA=lits[0], litB=lits[1])
         )
-        
+
     def test_3c_negation_mutex(self):
         # Negation mutexes are static, so if they appear in one layer then they
         # should appear in every later layer of the planning graph
@@ -256,7 +256,7 @@ class Test_4_CompetingNeedsMutex(BaseMutexTest):
                     ("Actions {} and {} were not mutex in layer {} of the planning graph").format(
                         self.competing_needs_actions[0], self.competing_needs_actions[1], idx)
                 )
-        
+
 
 class Test_5_InconsistentSupportMutex(BaseMutexTest):
     def setUp(self):
@@ -264,7 +264,7 @@ class Test_5_InconsistentSupportMutex(BaseMutexTest):
         self.ac_problem = air_cargo_p1()
         self.ac_pg_serial = PlanningGraph(self.ac_problem, self.ac_problem.initial).fill()
         # In(C1, P2) and In(C2, P1) have inconsistent support when they first appear in
-        # the air cargo problem, 
+        # the air cargo problem,
         self.inconsistent_support_literals = [expr("In(C1, P2)"), expr("In(C2, P1)")]
 
     def test_5a_inconsistent_support_mutex(self):
@@ -278,7 +278,7 @@ class Test_5_InconsistentSupportMutex(BaseMutexTest):
             and all of the actions that produce '{!s}': {!s} are pairwise mutex in the parent layer.
             """, litA, litB, litA, litlayer.parents[litA], litB, litlayer.parents[litB])
         )
-        
+
     def test_5b_inconsistent_support_mutex(self):
         litA, litB = self.inconsistent_support_literals
         litlayer = self.ac_pg_serial.literal_layers[-2]

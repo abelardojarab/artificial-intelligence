@@ -20,9 +20,19 @@ class ActionLayer(BaseActionLayer):
         layers.ActionNode
         """
         for effectA in actionA.effects:
+            if ~effectA in actionB.effects:
+                return True
+
+        for effectB in actionB.effects:
+            if ~effectB in actionA.effects:
+                return True
+
+        for effectA in actionA.effects:
             for effectB in actionB.effects:
                 if effectA == ~effectB:
                     return True
+
+        return False
         # raise NotImplementedError
 
     def _interference(self, actionA, actionB):
@@ -36,10 +46,20 @@ class ActionLayer(BaseActionLayer):
         --------
         layers.ActionNode
         """
+        for effectA in actionA.effects:
+            if ~effectA in actionB.preconditions:
+                return True
+
+        for effectB in actionB.effects:
+            if ~effectB in actionA.preconditions:
+                return True
+
         for effect in actionA.effects:
             for precondition in actionB.preconditions:
                 if precondition == ~effect:
                     return True
+
+        return False
         # raise NotImplementedError
 
     def _competing_needs(self, actionA, actionB):
@@ -54,10 +74,17 @@ class ActionLayer(BaseActionLayer):
         layers.ActionNode
         layers.BaseLayer.parent_layer
         """
+        for parentA in self.parents[actionA]:
+            for parentB in self.parents[actionB]:
+                if self.parent_layer.is_mutex(parentA, parentB):
+                    return True
+
         for preconditionA in actionA.preconditions:
             for preconditionB in actionB.preconditions:
                 if self.parent_layer.is_mutex(preconditionA, preconditionB):
                     return True
+
+        return False
         # raise NotImplementedError
 
 
@@ -84,8 +111,7 @@ class LiteralLayer(BaseLiteralLayer):
 
     def _negation(self, literalA, literalB):
         """ Return True if two literals are negations of each other """
-        if literalA == ~literalB and literalB == ~literalA:
-            return True
+        return literalA == ~literalB
         # raise NotImplementedError
 
 
@@ -154,8 +180,17 @@ class PlanningGraph:
         graph = self.fill()
         levelsum = 0
         for goal in self.goal:
-            levelsum = levelsum + self.costlevel(graph, goal)
+            found_goal = False
+            for level in range(len(self.literal_layers)):
+                if goal in self.literal_layers[level]:
+                    found_goal = True
+                    levelsum += level
+                if found_goal:
+                    break
 
+        #for goal in self.goal:
+        #    levelsum = levelsum + self.costlevel(graph, goal)
+        return levelsum
         # raise NotImplementedError
 
     def h_maxlevel(self):
