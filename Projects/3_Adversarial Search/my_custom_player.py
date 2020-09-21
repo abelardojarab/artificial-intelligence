@@ -190,10 +190,13 @@ class CustomPlayer(DataPlayer):
 
         if not state.terminal_test():
             # self.queue.put(random.choice(state.actions()))
-            while ((self.queue._TimedQueue__stop_time - 0.05) >
-                   time.perf_counter()):
-                mcts = MCTSSearch(MCTSNode(deepcopy(state)))
-                next_action = mcts.best_action(150, 0.5)
+            mcts = MCTSSearch(MCTSNode(state))
+            next_action = mcts.best_action(150, 0.5)
+            if next_action:
                 self.queue.put(next_action)
+            elif state.actions():
+                self.queue.put(random.choice(state.actions()))
+            else:
+                self.queue.put(None)
         else:
             return None
