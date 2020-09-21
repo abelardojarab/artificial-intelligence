@@ -1,5 +1,137 @@
+import random
+import sys
+import time
+import math
 
 from sample_players import DataPlayer
+from collections import defaultdict
+from isolation import isolation
+from copy import deepcopy
+
+
+import logging
+logging.basicConfig(level=logging.INFO)
+
+
+class MCTSNode():
+    """
+    Monte Carlo Tree Search node class
+    """
+
+    def __init__(self, state: isolation, action=None, parent=None):
+        '''
+        @param state: Game state included in this node
+        @param parent: Parent node for current node
+        '''
+
+        self.state = state
+        self.parent = parent
+        self.children = []
+        # The action that led to this state from parent.
+        # Default is None (as in root node)
+        self.action = action
+        self.visit = 0
+        self.utility = 0
+        self.untried_actions = state.actions()
+
+    def is_fully_expanded(self):
+        return len(self.untried_actions) == 0
+
+    def best_child(self, c_param=0.5):
+        """
+        Returns the state resulting from taking the best action.
+        c_param value between 0 (max score) and 1 (prioritize exploration)
+        """
+        maxscore = -999
+        maxaction = []
+        for t in self.children:
+            score = (t.utility / t.visit +
+                     c_param * math.sqrt(2 * math.log(self.visit / t.visit)))
+            if score > maxscore:
+                maxscore = score
+                del maxaction[:]
+                maxaction.append(t)
+            elif score == maxscore:
+                maxaction.append(t)
+        return maxaction[0]
+
+    def rollout_policy(self, possible_moves):
+        return random.choice(possible_moves)
+
+    def expand(self):
+        """
+        Returns a state resulting from taking an action from
+        the list of untried nodes
+        """
+        action = random.choice(self.untried_actions)
+        self.untried_actions.remove(action)
+        next_state = self.state.result(action)
+        child_node = MCTSNode(next_state, action=action, parent=self)
+        self.children.append(child_node)
+        return child_node
+
+    def is_terminal_node(self):
+        return self.state.terminal_test()
+
+    def playout_policy(self, player_id):
+        """
+        The simulation to run when visiting unexplored nodes.
+        Defaults to uniform random moves
+        """
+        rollout_state = self.state
+        while not rollout_state.terminal_test():
+            rollout_state = rollout_state.result(
+                self.rollout_policy(rollout_state.actions()))
+        # Utility with respect to the player of the parent state
+        if rollout_state.utility(
+                1-rollout_state.player()) == float('inf'):
+            return 1
+        # Utility with respect to the player of the parent state
+        elif rollout_state.utility(
+                1-rollout_state.player()) == float('-inf'):
+            return -1
+        else:
+            return 0
+
+    def backpropagate(self, result):
+        self.visit += 1
+        self.utility += result
+        result = -result
+        if self.parent:
+            self.parent.backpropagate(result)
+
+
+class MCTSSearch():
+    '''
+    Perform Monte Carlo Tree Search
+    '''
+
+    def __init__(self, node: MCTSNode):
+        self.root = node
+        self.player_id = self.root.state.player()
+        self.node_no = 1
+
+    def best_action(self, simulations_time, c_param):
+        start = time.time()
+        allowed_time = math.ceil(simulations_time * 0.75)
+        while (time.time()-start)*1000 <= allowed_time:
+            v = self.tree_policy()
+            reward = v.playout_policy(self.player_id)
+            v.backpropagate(reward)
+        next_node = self.root.best_child(c_param=c_param)
+        next_action = next_node.action
+        return next_action
+
+    def tree_policy(self):
+        current_node = self.root
+        while not current_node.is_terminal_node():
+            if not current_node.is_fully_expanded():
+                new_node = current_node.expand()
+                self.node_no += 1
+                return new_node
+            else:
+                current_node = current_node.best_child(c_param=0.5)
+        return current_node
 
 
 class CustomPlayer(DataPlayer):
@@ -30,7 +162,7 @@ class CustomPlayer(DataPlayer):
         See RandomPlayer and GreedyPlayer in sample_players for more examples.
 
         **********************************************************************
-        NOTE: 
+        NOTE:
         - The caller is responsible for cutting off search, so calling
           get_action() from your own code will create an infinite loop!
           Refer to (and use!) the Isolation.play() function to run games.
@@ -40,7 +172,15 @@ class CustomPlayer(DataPlayer):
         #       method by combining techniques from lecture
         #
         # EXAMPLE: choose a random move without any search--this function MUST
-        #          call self.queue.put(ACTION) at least once before time expires
-        #          (the timer is automatically managed for you)
-        import random
-        self.queue.put(random.choice(state.actions()))
+        #         call self.queue.put(ACTION) at least once before time expires
+        #         (the timer is automatically managed for you)
+
+        if not state.terminal_test():
+            # self.queue.put(random.choice(state.actions()))
+            while ((self.queue._TimedQueue__stop_time - 0.05) >
+                   time.perf_counter()):
+                mcts = MCTSSearch(MCTSNode(deepcopy(state)))
+                next_action = mcts.best_action(150, 0.5)
+                self.queue.put(next_action)
+        else:
+            return None
