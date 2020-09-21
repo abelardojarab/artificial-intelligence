@@ -10,7 +10,7 @@ from copy import deepcopy
 
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARN)
 
 
 class MCTSNode():
@@ -43,17 +43,30 @@ class MCTSNode():
         c_param value between 0 (max score) and 1 (prioritize exploration)
         """
         maxscore = -999
-        maxaction = []
+        maxactions = []
         for t in self.children:
             score = (t.utility / t.visit +
                      c_param * math.sqrt(2 * math.log(self.visit / t.visit)))
             if score > maxscore:
                 maxscore = score
-                del maxaction[:]
-                maxaction.append(t)
+                del maxactions[:]
+                maxactions.append(t)
             elif score == maxscore:
-                maxaction.append(t)
-        return maxaction[0]
+                maxactions.append(t)
+
+        # Choose move that results in giving us more freedom
+        helper_scores = [self.heuristic_score(x.state) for x in maxactions]
+        return maxactions[helper_scores.index(max(helper_scores))]
+
+    def heuristic_score(self, state):
+        # A list containing the position of open liberties in the
+        # neighborhood of the starting position
+        player_id = state.player()
+        own_loc = state.locs[player_id]
+        opp_loc = state.locs[1 - player_id]
+        own_liberties = state.liberties(own_loc)
+        opp_liberties = state.liberties(opp_loc)
+        return len(own_liberties) - len(opp_liberties)
 
     def rollout_policy(self, possible_moves):
         return random.choice(possible_moves)
