@@ -34,6 +34,7 @@ class MCTSNode():
         self.utility = 0
         self.untried_actions = state.actions()
 
+
     def is_fully_expanded(self):
         return len(self.untried_actions) == 0
 
@@ -188,15 +189,19 @@ class CustomPlayer(DataPlayer):
         #         call self.queue.put(ACTION) at least once before time expires
         #         (the timer is automatically managed for you)
 
-        if not state.terminal_test():
-            # self.queue.put(random.choice(state.actions()))
-            mcts = MCTSSearch(MCTSNode(state))
-            next_action = mcts.best_action(150, 0.5)
-            if next_action:
-                self.queue.put(next_action)
-            elif state.actions():
+        try:
+            if state.terminal_test() or state.ply_count < 2:
                 self.queue.put(random.choice(state.actions()))
             else:
-                self.queue.put(None)
-        else:
-            return None
+                # self.queue.put(random.choice(state.actions()))
+                mcts = MCTSSearch(MCTSNode(state))
+                next_action = mcts.best_action(150, 0.5)
+                if next_action:
+                    self.queue.put(next_action)
+                elif state.actions():
+                    self.queue.put(random.choice(state.actions()))
+                else:
+                    self.queue.put(None)
+
+        except Exception as e:
+            print("Unexpected error: {}".format(sys.exc_info()[0]))
