@@ -1,4 +1,4 @@
-
+#!/bin/env python3
 import argparse
 
 from aimacode.search import (breadth_first_search, astar_search,
@@ -81,7 +81,7 @@ def main(p_choices, s_choices):
 
 
 if __name__=="__main__":
-    parser = argparse.ArgumentParser(description="Solve air cargo planning problems " + 
+    parser = argparse.ArgumentParser(description="Solve air cargo planning problems " +
         "using a variety of state space search methods including uninformed, greedy, " +
         "and informed heuristic search.")
     parser.add_argument('-m', '--manual', action="store_true",
